@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>drain</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0a0a0a;
+      --card: rgba(20, 20, 20, 0.75);
+      --border: rgba(255, 255, 255, 0.1);
+      --border-hover: rgba(255, 255, 255, 0.45);
+      --text: #f5f5f5;
+      --text-dim: #8a8a8a;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      background: var(--bg);
+      color: var(--text);
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    .video-bg {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+      z-index: -2;
+      filter: grayscale(100%) brightness(0.45);
+    }
+    .video-overlay {
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at center, rgba(10, 10, 10, 0.35), rgba(10, 10, 10, 0.85)),
+        rgba(10, 10, 10, 0.4);
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    .card {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 420px;
+      text-align: center;
+      background: var(--card);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 40px 28px;
+      box-shadow:
+        0 20px 60px rgba(0, 0, 0, 0.7),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      animation: appear 0.6s ease-out;
+    }
+    @keyframes appear {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .avatar {
+      width: 110px; height: 110px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.25);
+      box-shadow: 0 0 30px rgba(255, 255, 255, 0.15);
+      object-fit: cover;
+      margin-bottom: 18px;
+      transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+    }
+    .avatar:hover {
+      transform: scale(1.05);
+      border-color: rgba(255, 255, 255, 0.6);
+      box-shadow: 0 0 40px rgba(255, 255, 255, 0.3);
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+      background: linear-gradient(135deg, #ffffff 0%, #999999 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: 0.5px;
+    }
+
+    .bio {
+      font-size: 1rem;
+      color: #e8e8e8;
+      margin-bottom: 22px;
+      line-height: 1.5;
+      letter-spacing: 0.5px;
+      font-style: italic;
+      text-shadow:
+        0 0 6px rgba(255, 255, 255, 0.9),
+        0 0 14px rgba(255, 255, 255, 0.7),
+        0 0 28px rgba(255, 255, 255, 0.5),
+        0 0 48px rgba(255, 255, 255, 0.3);
+      animation: glow-pulse 3s ease-in-out infinite;
+    }
+    @keyframes glow-pulse {
+      0%, 100% {
+        text-shadow:
+          0 0 6px rgba(255, 255, 255, 0.9),
+          0 0 14px rgba(255, 255, 255, 0.7),
+          0 0 28px rgba(255, 255, 255, 0.5),
+          0 0 48px rgba(255, 255, 255, 0.3);
+      }
+      50% {
+        text-shadow:
+          0 0 8px rgba(255, 255, 255, 1),
+          0 0 20px rgba(255, 255, 255, 0.9),
+          0 0 38px rgba(255, 255, 255, 0.7),
+          0 0 64px rgba(255, 255, 255, 0.5);
+      }
+    }
+
+    .player {
+      margin-bottom: 22px;
+      padding: 16px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      text-align: left;
+    }
+
+    .player-title {
+      font-size: 0.78rem;
+      color: var(--text-dim);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .now-playing {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 14px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-height: 1.3em;
+    }
+
+    .player-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .ctrl-btn {
+      width: 38px; height: 38px;
+      flex-shrink: 0;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.04);
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.25s ease;
+    }
+    .ctrl-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.5);
+    }
+    .ctrl-btn svg { width: 16px; height: 16px; }
+
+    .play-btn {
+      width: 44px; height: 44px;
+      border-color: rgba(255, 255, 255, 0.25);
+      background: rgba(255, 255, 255, 0.06);
+    }
+    .play-btn:hover {
+      box-shadow: 0 0 20px rgba(255, 255, 255, 0.15);
+    }
+    .play-btn svg { width: 20px; height: 20px; }
+
+    .progress-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .progress-bar {
+      position: relative;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 3px;
+      cursor: pointer;
+      overflow: hidden;
+    }
+    .progress-fill {
+      position: absolute;
+      top: 0; left: 0;
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #ffffff, #999999);
+      border-radius: 3px;
+      transition: width 0.1s linear;
+    }
+
+    .time-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .volume-btn {
+      width: 32px; height: 32px;
+      flex-shrink: 0;
+      border: none;
+      background: transparent;
+      color: var(--text-dim);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.25s ease;
+    }
+    .volume-btn:hover { color: #fff; }
+    .volume-btn svg { width: 18px; height: 18px; }
+
+    .volume-bar {
+      width: 50px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 2px;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .volume-fill {
+      position: absolute;
+      top: 0; left: 0;
+      height: 100%;
+      width: 70%;
+      background: rgba(255, 255, 255, 0.7);
+      border-radius: 2px;
+    }
+
+    .links {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 14px;
+      margin-top: 8px;
+    }
+
+    .link {
+      width: 56px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      color: #d4d4d4;
+      text-decoration: none;
+      transition: all 0.25s ease;
+      position: relative;
+    }
+
+    .link:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: var(--border-hover);
+      color: #ffffff;
+      transform: translateY(-3px) scale(1.05);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 20px rgba(255, 255, 255, 0.15);
+    }
+
+    .link svg {
+      width: 24px;
+      height: 24px;
+      transition: transform 0.25s ease;
+    }
+
+    .link:hover svg {
+      transform: scale(1.15);
+    }
+
+    @media (max-width: 480px) {
+      .link { width: 50px; height: 50px; }
+      .link svg { width: 22px; height: 22px; }
+      .links { gap: 12px; }
+    }
+
+    .footer {
+      margin-top: 28px;
+      font-size: 0.78rem;
+      color: var(--text-dim);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .video-bg { display: none; }
+      body {
+        background-image:
+          radial-gradient(ellipse at top, rgba(255, 255, 255, 0.06), transparent 60%),
+          radial-gradient(ellipse at bottom, rgba(255, 255, 255, 0.04), transparent 60%);
+      }
+      .bio { animation: none; }
+    }
+  </style>
+</head>
+<body>
+  <video class="video-bg" autoplay muted loop playsinline poster="poster.jpg">
+    <source src="loop.mp4" type="video/mp4">
+  </video>
+  <div class="video-overlay"></div>
+
+  <div class="card">
+    <img class="avatar" src="avatar.jpg" alt="Аватар"
+         onerror="this.src='https://ui-avatars.com/api/?name=drain&size=110&background=1a1a1a&color=ffffff'">
+
+    <h1>drain</h1>
+    <p class="bio">Не дай свету своему погаснуть</p>
+
+    <div class="player">
+      <div class="player-title">Сейчас играет</div>
+      <div class="now-playing" id="nowPlaying">—</div>
+
+      <div class="player-row">
+        <button class="ctrl-btn" id="prevBtn" aria-label="Предыдущий">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+        </button>
+
+        <button class="play-btn ctrl-btn" id="playBtn" aria-label="Play">
+          <svg id="playIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+
+        <button class="ctrl-btn" id="nextBtn" aria-label="Следующий">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 6h2v12h-2zM6 6l8.5 6L6 18z"/></svg>
+        </button>
+
+        <div class="progress-wrap">
+          <div class="progress-bar" id="progressBar">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+          <div class="time-row">
+            <span id="currentTime">0:00</span>
+            <span id="duration">0:00</span>
+          </div>
+        </div>
+
+        <button class="volume-btn" id="volumeBtn" aria-label="Mute">
+          <svg id="volumeIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05A4.47 4.47 0 0 0 16.5 12zM14 3.23v2.06a7 7 0 0 1 0 13.42v2.06a9 9 0 0 0 0-17.54z"/></svg>
+        </button>
+        <div class="volume-bar" id="volumeBar">
+          <div class="volume-fill" id="volumeFill"></div>
+        </div>
+      </div>
+    </div>
+
+    <audio id="audio" preload="auto" loop></audio>
+
+    <div class="links">
+      <a class="link" href="https://tiktok.com/@drainspend" target="_blank" rel="noopener" aria-label="TikTok" title="TikTok">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>
+      </a>
+      <a class="link" href="https://twitch.tv/drainspend" target="_blank" rel="noopener" aria-label="Twitch" title="Twitch">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714Z"/></svg>
+      </a>
+      <a class="link" href="https://t.me/fuckdrainspend" target="_blank" rel="noopener" aria-label="Telegram" title="Telegram">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+      </a>
+      <a class="link" href="https://vk.com/drainspend" target="_blank" rel="noopener" aria-label="VK" title="VK">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13.162 18.994c.609 0 .858-.406.851-.915-.031-1.917.714-2.949 2.059-1.604 1.488 1.488 1.796 2.519 3.603 2.519h3.2c.808 0 1.126-.26 1.126-.668 0-.863-1.421-2.386-2.625-3.504-1.686-1.565-1.765-1.602-.313-3.486 1.801-2.339 4.157-5.336 2.073-5.336h-3.981c-.772 0-.828.435-1.103 1.083-.995 2.347-2.886 5.387-3.604 4.922-.751-.485-.407-2.406-.35-5.261.015-.754.011-1.271-1.141-1.539-.665-.148-1.279-.225-1.918-.225-2.231 0-3.769 1.75-1.763 2.144 1.075.211 1.335.856 1.343 2.239.014 2.073.233 4.688-.973 4.736-1.425.058-3.527-4.61-5.14-9.503-.142-.423-.258-.86-1.024-.86H1.204c-.772 0-.896.443-.746.991 1.357 5.717 5.019 13.578 11.44 13.578z"/></svg>
+      </a>
+      <a class="link" href="https://discord.com/users/drainspend" target="_blank" rel="noopener" aria-label="Discord" title="Discord">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></svg>
+      </a>
+      <a class="link" href="https://mail.google.com/mail/?view=cm&fs=1&to=simonszxcghoul@gmail.com" target="_blank" rel="noopener" aria-label="Email" title="Написать на почту">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"/></svg>
+      </a>
+    </div>
+
+    <div class="footer">© 2026 drain</div>
+  </div>
+
+  <script>
+    const tracks = [
+      { title: 'nuts — lil peep, rainy bear', src: 'music/track1.mp3' },
+      { title: 'пунктир — вышел покурить',    src: 'music/track2.mp3' },
+      { title: 'я схавал опиат — CUPSIZE',    src: 'music/track3.mp3' }
+    ];
+
+    const audio = document.getElementById('audio');
+    const playBtn = document.getElementById('playBtn');
+    const playIcon = document.getElementById('playIcon');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const progressBar = document.getElementById('progressBar');
+    const progressFill = document.getElementById('progressFill');
+    const currentTimeEl = document.getElementById('currentTime');
+    const durationEl = document.getElementById('duration');
+    const volumeBtn = document.getElementById('volumeBtn');
+    const volumeBar = document.getElementById('volumeBar');
+    const volumeFill = document.getElementById('volumeFill');
+    const nowPlaying = document.getElementById('nowPlaying');
+
+    const iconPlay = '<path d="M8 5v14l11-7z"/>';
+    const iconPause = '<path d="M6 5h4v14H6zm8 0h4v14h-4z"/>';
+
+    let currentIndex = 0;
+
+    function formatTime(sec) {
+      if (isNaN(sec)) return '0:00';
+      const m = Math.floor(sec / 60);
+      const s = Math.floor(sec % 60).toString().padStart(2, '0');
+      return `${m}:${s}`;
+    }
+
+    function playTrack(index) {
+      currentIndex = (index + tracks.length) % tracks.length;
+      const track = tracks[currentIndex];
+      audio.src = track.src;
+      nowPlaying.textContent = track.title;
+      audio.play().catch(() => {});
+    }
+
+    playBtn.addEventListener('click', () => {
+      if (!audio.src) {
+        playTrack(0);
+        return;
+      }
+      if (audio.paused) {
+        audio.play();
+      } else {
+        audio.pause();
+      }
+    });
+
+    prevBtn.addEventListener('click', () => playTrack(currentIndex - 1));
+    nextBtn.addEventListener('click', () => playTrack(currentIndex + 1));
+
+    audio.addEventListener('play', () => {
+      playIcon.innerHTML = iconPause;
+      playBtn.setAttribute('aria-label', 'Pause');
+    });
+    audio.addEventListener('pause', () => {
+      playIcon.innerHTML = iconPlay;
+      playBtn.setAttribute('aria-label', 'Play');
+    });
+
+    audio.addEventListener('loadedmetadata', () => {
+      durationEl.textContent = formatTime(audio.duration);
+    });
+    audio.addEventListener('timeupdate', () => {
+      const pct = (audio.currentTime / audio.duration) * 100 || 0;
+      progressFill.style.width = pct + '%';
+      currentTimeEl.textContent = formatTime(audio.currentTime);
+    });
+
+    audio.addEventListener('ended', () => {
+      playTrack(currentIndex + 1);
+    });
+
+    progressBar.addEventListener('click', (e) => {
+      const rect = progressBar.getBoundingClientRect();
+      const pct = (e.clientX - rect.left) / rect.width;
+      if (audio.duration) audio.currentTime = pct * audio.duration;
+    });
+
+    volumeBar.addEventListener('click', (e) => {
+      const rect = volumeBar.getBoundingClientRect();
+      const vol = Math.min(Math.max((e.clientX - rect.left) / rect.width, 0), 1);
+      audio.volume = vol;
+      volumeFill.style.width = (vol * 100) + '%';
+      audio.muted = vol === 0;
+    });
+    volumeBtn.addEventListener('click', () => {
+      audio.muted = !audio.muted;
+      volumeFill.style.width = audio.muted ? '0%' : (audio.volume * 100) + '%';
+    });
+
+    /* === АВТОЗАПУСК С ТИХОЙ ГРОМКОСТЬЮ === */
+    audio.volume = 0.25;
+    volumeFill.style.width = '25%';
+    nowPlaying.textContent = tracks[0].title;
+    audio.src = tracks[0].src;
+
+    let started = false;
+
+    function startMusic() {
+      if (started) return;
+      const p = audio.play();
+      if (p !== undefined) {
+        p.then(() => {
+          started = true;
+        }).catch(() => {
+          // браузер ещё не разрешил — ждём действия
+        });
+      }
+    }
+
+    // Попытка №1: сразу
+    startMusic();
+
+    // Попытка №2: после полной загрузки страницы
+    window.addEventListener('load', startMusic);
+
+    // Попытка №3: при любом действии пользователя
+    ['click', 'touchstart', 'keydown', 'scroll', 'mousemove'].forEach(evt => {
+      document.addEventListener(evt, startMusic, { once: true, passive: true });
+    });
+  </script>
+</body>
+</html>
